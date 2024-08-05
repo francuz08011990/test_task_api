@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Price currency pair</title>
+    </head>
+    <body style='text-align:center'>
+        <h1>Price currency pair</h1>
+        <div>
+            <form>
+                <label for="currency1">Currency 1</label>
+                <input type="text" id="currency1" autocomplete="off" placeholder="Enter currency, ex 'BTC'"/>
+                <label for="currency2">Currency 2</label>
+                <input type="text" id="currency2" autocomplete="off" placeholder="Enter currency, ex 'USDT'"/>
+                <label for="exchange">Crypto exchange</label>
+                <select id="exchange">
+                    <option value="">----------</option>
+                    <option value="binance">Binance</option>
+                    <option value="kraken">Kraken</option>
+                </select>
+                <input type="button" id="buttonForm" disabled value="Get price" onclick="sendMessage(Event)"/>
+                <input type='button' value='Refresh connection' onclick="refreshConnection()"/>
+            </form>
+        </div>
+        <div style="width:20%">
+            Binance
+            <ul id='messagesBinance'>
+                <li></li>
+            </ul>
+        </div>
+        <div style="width:20%">
+            Kraken
+            <ul id='messagesKraken'>
+                <li></li>
+            </ul>
+        </div>
+
+        <script>
+            let wsBinance;
+            let wsKraken;
+            let currency1 = document.getElementById("currency1");
+            let currency2 = document.getElementById("currency2");
+            let exchangeSelect = document.getElementById("exchange");
+            const messagesBinance = document.getElementById('messagesBinance');
+            const messagesKraken = document.getElementById('messagesKraken');
+            const buttonForm = document.getElementById('buttonForm');
+
+            function connectBinanceWebSocket() {
+                wsBinance = new WebSocket("ws://localhost:8000/ws/binance");
+                wsBinance.onopen = function(event) {
+                    console.log('Binance ws connected');
+                };
+                wsBinance.onerror = function(error) {
+                    console.error('Binance ws error:', error);
+                };
+                wsBinance.onclose = function(event) {
+                    console.log('Binance ws closed');
+                };
+                wsBinance.onmessage = function(event) {
+                    let message = document.createElement('li');
+                    let content = document.createTextNode(event.data);
+                    message.appendChild(content);
+                    messagesBinance.appendChild(message);
+                    messagesBinance.removeChild(messagesBinance.firstElementChild);
+                };
+            }
+            function connectKrakenWebSocket() {
+                wsKraken = new WebSocket("ws://localhost:8000/ws/kraken");
+                wsKraken.onopen = function(event) {
+                    console.log('Kraken ws connected');
+                };
+                wsKraken.onerror = function(error) {
+                    console.error('Kraken ws error:', error);
+                };
+                wsKraken.onclose = function(event) {
+                    console.log('Kraken ws closed');
+                };
+                wsKraken.onmessage = function(event) {
+                    let message = document.createElement('li');
+                    let content = document.createTextNode(event.data);
+                    message.appendChild(content);
+                    messagesKraken.appendChild(message);
+                    messagesKraken.removeChild(messagesKraken.firstElementChild);
+                };
+            }
+            function sendMessage(event) {
+                let data = {"pair": `${currency1.value}/${currency2.value}`};
+                let jsonData = JSON.stringify(data);
+                switch (exchangeSelect.value) {
+                    case 'kraken':
+                        wsKraken.send(jsonData);
+                        console.log('Getting price in real time from Kraken')
+                        break;
+                    case 'binance':
+                        wsBinance.send(jsonData);
+                        console.log('Getting price in real time from Binance')
+                        break;
+                    default:
+                        wsKraken.send(jsonData);
+                        wsBinance.send(jsonData);
+                        console.log('Getting price in real time from both exchanges')
+                        break;
+                }
+                currency1.value = '';
+                currency2.value = '';
+            }
+            function refreshConnection() {
+                wsBinance.close();
+                wsKraken.close();
+                messagesBinance.firstElementChild.textContent = ''
+                messagesKraken.firstElementChild.textContent = ''
+                connectBinanceWebSocket();
+                connectKrakenWebSocket();
+            }
+
+            connectBinanceWebSocket();
+            connectKrakenWebSocket();
+
+            function checkInputs() {
+                buttonForm.disabled = !currency1.value || !currency2.value;
+            }
+            currency1.addEventListener('input', checkInputs);
+            currency2.addEventListener('input', checkInputs);
+        </script>
+    </body>
+</html>
